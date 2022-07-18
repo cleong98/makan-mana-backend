@@ -8,4 +8,41 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // for heroku using database url
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+enum Status {
+  ACTIVE
+  FREEZE
+}
+
+enum Role {
+  USER
+  SUPERADMIN
+  ADMIN
+}
+
+// gender model
+model Gender {
+  id    Int    @id @default(autoincrement())
+  title String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User[]
+}
+
+// user model
+model User {
+  id       Int  @id @default(autoincrement())
+  email String @unique
+  phone String
+  avatar String
+  role Role
+  status Status @default(ACTIVE)
+  author   Gender @relation(fields: [genderId], references: [id])
+  genderId Int
+  password String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
