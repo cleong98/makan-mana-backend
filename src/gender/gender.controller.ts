@@ -2,33 +2,41 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { GenderService } from './gender.service';
 import { CreateGenderDto } from './dto/create-gender.dto';
 import { UpdateGenderDto } from './dto/update-gender.dto';
+import { ApiCreatedResponse, ApiTags } from '@nestjs/swagger';
+import { GenderEntity } from './entities/gender.entity';
 
 @Controller('gender')
+@ApiTags('Gender')
 export class GenderController {
   constructor(private readonly genderService: GenderService) {}
 
   @Post()
+  @ApiCreatedResponse({ type: GenderEntity })
   create(@Body() createGenderDto: CreateGenderDto) {
     return this.genderService.create(createGenderDto);
   }
 
   @Get()
+  @ApiCreatedResponse({ type: GenderEntity })
   findAll() {
-    return this.genderService.findAll();
+    return this.genderService.findAllGender();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.genderService.findOne(+id);
+  @Get(':uuid')
+  @ApiCreatedResponse({ type: GenderEntity })
+  findOne(@Param('uuid') uuid: string) {
+    return this.genderService.findGender({ uuid});
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateGenderDto: UpdateGenderDto) {
-    return this.genderService.update(+id, updateGenderDto);
+  @Patch(':uuid')
+  @ApiCreatedResponse({ type: GenderEntity })
+  update(@Param('uuid') uuid: string, @Body() updateGenderDto: UpdateGenderDto) {
+    return this.genderService.update(uuid, updateGenderDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.genderService.remove(+id);
+  @Delete(':uuid')
+  @ApiCreatedResponse({ type: GenderEntity })
+  remove(@Param('uuid') uuid: string) {
+    return this.genderService.remove(uuid);
   }
 }
