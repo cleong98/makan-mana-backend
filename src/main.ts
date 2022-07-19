@@ -9,6 +9,7 @@ async function bootstrap() {
     .setTitle('Makan Mana')
     .setDescription('Makan Mana API description')
     .setVersion('0.1')
+    .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);

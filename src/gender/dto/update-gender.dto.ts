@@ -6,9 +6,8 @@ export class UpdateGenderDto extends PartialType(CreateGenderDto) {
     @IsNotEmpty()
     @IsString()
     @ApiProperty({ required: true, description: 'Gender ID', example: '123123131231', type: 'string' })
-    id: number;
+    uuid: string;
 
     @ApiProperty({ required: false, description: 'this gender want active?', example: 'true', type: 'boolean' })
     isAlive?: boolean;
-
 }

@@ -23,6 +23,13 @@ enum Role {
   ADMIN
 }
 
+enum UserType {
+  EMAIL
+  GOOGLE
+  FACEBOOK
+  APPLE
+}
+
 // gender model
 model Gender {
   id    Int    @id @default(autoincrement())
@@ -40,10 +47,11 @@ model User {
   uuid String @unique @default(uuid())
   email String @unique
   phone String
-  avatar String
+  avatar String @default("")
+  userType UserType
   role Role
   status Status @default(ACTIVE)
-  author   Gender @relation(fields: [genderId], references: [id])
+  gender Gender @relation(fields: [genderId], references: [id])
   genderId Int
   password String
   createdAt DateTime @default(now())
