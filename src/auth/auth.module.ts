@@ -6,6 +6,7 @@ import { PassportModule } from '@nestjs/passport';
 import { LocalStrategy } from './strategy/local.strategy';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './strategy/jwt.strategy';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   controllers: [AuthController],
@@ -14,6 +15,7 @@ import { JwtStrategy } from './strategy/jwt.strategy';
     UserModule, 
     PassportModule, 
     JwtModule,
+    HttpModule,
     JwtModule.registerAsync({
       useFactory() {
         return {

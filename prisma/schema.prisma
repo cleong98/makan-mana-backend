@@ -30,16 +30,16 @@ enum UserType {
   APPLE
 }
 
-// gender model
-model Gender {
-  id    Int    @id @default(autoincrement())
-  uuid String @unique @default(uuid())
-  title String @unique
-  isAlive Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user User[]
-}
+// // gender model
+// model Gender {
+//   id    Int    @id @default(autoincrement())
+//   uuid String @unique @default(uuid())
+//   title String @unique
+//   isAlive Boolean @default(true)
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+//   user User[]
+// }
 
 // user model
 model User {
@@ -51,8 +51,9 @@ model User {
   userType UserType
   role Role
   status Status @default(ACTIVE)
-  gender Gender @relation(fields: [genderId], references: [id])
-  genderId Int
+  oauthId String @default("")
+  // gender Gender @relation(fields: [genderId], references: [id])
+  // genderId Int
   password String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

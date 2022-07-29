@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Status } from '@prisma/client';
+import { Status, UserType } from '@prisma/client';
 import { hashSync } from 'bcryptjs';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -8,17 +8,59 @@ import { UpdateUserDto } from './dto/update-user.dto';
 @Injectable()
 export class UserService {
   constructor (private prisma: PrismaService) {}
-  create(createUserDto: CreateUserDto) {
+  async create(createUserDto: CreateUserDto) {
     // hash user password
-    createUserDto.password = hashSync(createUserDto.password);
+    try {
+      if(createUserDto.password.length != 0) {
+        createUserDto.password = hashSync(createUserDto.password);
+      }
+      
+    const user = await this.findOneByEmail(
+      createUserDto.email,
+      {
+      showPass: false,
+    });
+    console.log(user);
+    if (user) {
+      return {
+        message: "this email already register",
+        data: user.data,
+      }
+    }
 
-    return this.prisma.user.upsert({
+    const result = await this.prisma.user.upsert({
       where: {
         email: createUserDto.email,
       },
        update: {},
       create: createUserDto,
+      select: {
+        uuid: true,
+        email: true,
+        phone: true,
+        avatar: true,
+        userType: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+        gender: {
+          select: {
+            title: true,
+          }
+        }
+      }
     });
+    return {
+      message: "create success",
+      data: result,
+    }
+
+    }catch (error) {
+      return {
+        message: "User already Register",
+        error,
+      }
+    }
   }
 
   async findAll(status: Status = Status.ACTIVE) {
@@ -94,7 +136,7 @@ export class UserService {
      }
   }
 
-  async findOneByEmail(email: string, status: Status = Status.ACTIVE) {
+  async findOneByEmail(email: string,{status, showPass}: {status?: Status, showPass?: boolean} = { status: Status.ACTIVE, showPass: false}) {
     try {
       const data = await this.prisma.user.findFirst({
         where: {
@@ -110,7 +152,7 @@ export class UserService {
           role: true,
           createdAt: true,
           updatedAt: true,
-          password: true,
+          password: showPass,
           gender: {
             select: {
               title: true,
