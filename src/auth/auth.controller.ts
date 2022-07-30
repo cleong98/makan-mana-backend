@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, HttpException, HttpStatus } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -10,7 +10,6 @@ import { AuthService } from './auth.service';
 import { CurrentUser } from './decorator/current-user.decorator';
 import { FacebookAuthDto } from './dto/facebook_auth.dto';
 import { GoogleAuthDto } from './dto/google_auth.dto';
-import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
 @Controller('auth')
@@ -20,36 +19,45 @@ export class AuthController {
     private readonly authService: AuthService, 
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
-    ) {}
+  ) {}
 
 
- @Post('login')
- @UseGuards(AuthGuard('local'))
- login(@Body() loginDto: LoginDto, @CurrentUser() user: User) {
-  return {
-    token: this.jwtService.sign(user.uuid),
-    data: user,
-  };
- }
+  @Post('login')
+  @UseGuards(AuthGuard('local'))
+  login(@CurrentUser() user: User) {
+    try {
+      return {
+        token: this.jwtService.sign(user.uniqueId),
+        data: user,
+      };
+
+    } catch (e) {
+      throw e;
+    }
+  }
 
  @Post('oauth/google')
  async googleSignin(@Body() googleAuthDto: GoogleAuthDto) {
   try {
     const result = await this.authService.validateOauth2FromGoogle(googleAuthDto.tokenId);
     if (result) {
-      const user: CreateUserDto = {
+      const userDto: CreateUserDto = {
         email: result.email,
         phone: "",
         userType: UserType.GOOGLE,
         role: Role.USER,
         password: "",
-        genderId: googleAuthDto.genderId,
+        oauthId: googleAuthDto.tokenId,
+        username: result.name,
+        avatar: {
+          url: result.picture
+        },
       }
-      const createdResult = await this.userService.create(user);
-        if (createdResult.data) {
+      const user = await this.userService.create(userDto);
+        if (user) {
           return {
-            token: this.jwtService.sign(createdResult.data.uuid),
-            message: createdResult.message,
+            token: this.jwtService.sign(user.uniqueId),
+            message: "Login Successful",
             data: user,
           };
         }
@@ -57,28 +65,67 @@ export class AuthController {
     }
 
   } catch(error) {
-    return {
-      error,
-      message: "user not found"
-    }
+    throw new HttpException(error, HttpStatus.UNAUTHORIZED);
   }
   
  } 
 
  @Post('oauth/facebook')
  async facebookSiginin(@Body() facebookAuthDto) {
-  return this.authService.validateFacebook(facebookAuthDto.accessToken);
- 
+  try {
+    const result = await this.authService.validateFacebook(facebookAuthDto.accessToken);
+    if (result) {
+      const picture = result.picture.data;
+      const userDto: CreateUserDto = {
+        email: result.email,
+        phone: "",
+        userType: UserType.FACEBOOK,
+        role: Role.USER,
+        password: "",
+        oauthId: facebookAuthDto.tokenId,
+        username: result.name,
+        avatar: {
+          url: picture.url,
+          height: String(picture.height),
+          width: String(picture.width),
+        },
+      }
+      const user = await this.userService.create(userDto);
+        if (user) {
+          return {
+            token: this.jwtService.sign(user.uniqueId),
+            message: "Login Successful",
+            data: user,
+          };
+        }
+
+    }
+
+  } catch (e) {
+    throw new HttpException(e, HttpStatus.UNAUTHORIZED);
+  }
+  
  }
 
  @Post('register')
  @ApiOperation({ summary: 'User Register' })
- register(@Body() registerDto: RegisterDto) {
-  return this.userService.create({
-    ...registerDto,
-    userType: UserType.EMAIL,
-    role: Role.USER,
-  });
+ async register(@Body() registerDto: RegisterDto) {
+  try {
+    const user = await this.userService.create({
+      ...registerDto,
+      userType: UserType.EMAIL,
+      role: Role.USER
+    });
+    return {
+      msg: 'Register Successful',
+      data: {
+        user,
+      }
+    };
+
+  } catch(e) {
+   throw e;
+  }
  }
 
  @Get('user')
@@ -89,25 +136,5 @@ export class AuthController {
  @UseGuards(AuthGuard('jwt'))
   async info(@CurrentUser() user: User) {
     return user;
-  }
-
-  @Get()
-  findAll() {
-    return this.authService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.authService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAuthDto) {
-    return this.authService.update(+id, updateAuthDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.authService.remove(+id);
   }
 }

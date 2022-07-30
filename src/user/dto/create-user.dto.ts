@@ -1,4 +1,4 @@
-import { Gender, Role, UserType } from "@prisma/client"
+import { Role, UserType } from "@prisma/client"
 
 export class CreateUserDto {
     email: string
@@ -6,5 +6,11 @@ export class CreateUserDto {
     userType: UserType
     role: Role
     password: string
-    genderId: number
+    oauthId?: string
+    username?: string
+    avatar?: {
+        url: string,
+        width?: string,
+        height?: string,
+    }
 }

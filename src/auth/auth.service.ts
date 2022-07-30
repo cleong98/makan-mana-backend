@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { compareSync } from 'bcryptjs';
 import { lastValueFrom, map } from 'rxjs';
 import { UserService } from 'src/user/user.service';
@@ -40,7 +40,9 @@ export class AuthService {
         ),
       );
     } catch(e) {
-
+      throw new UnauthorizedException({
+        msg: "Not Found User",
+      });
     }
   }
 

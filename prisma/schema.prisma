@@ -12,11 +12,6 @@ datasource db {
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-enum Status {
-  ACTIVE
-  FREEZE
-}
-
 enum Role {
   USER
   SUPERADMIN
@@ -30,31 +25,225 @@ enum UserType {
   APPLE
 }
 
-// // gender model
-// model Gender {
-//   id    Int    @id @default(autoincrement())
-//   uuid String @unique @default(uuid())
-//   title String @unique
-//   isAlive Boolean @default(true)
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-//   user User[]
-// }
+enum RestaurantStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ReviewRating {
+  SUGGEST
+  NORMAL
+  BAD
+}
+
+enum ImageRef {
+  RESTAURANT 
+  USER 
+  REVIEW 
+  MENU
+}
 
 // user model
 model User {
-  id       Int  @id @default(autoincrement())
-  uuid String @unique @default(uuid())
-  email String @unique
+  id Int  @id @default(autoincrement())
+  uniqueId String @unique @default(uuid())
+  username String @default("")
+  email String
   phone String
-  avatar String @default("")
+  password String
+  isActive Boolean @default(true)
   userType UserType
   role Role
-  status Status @default(ACTIVE)
   oauthId String @default("")
-  // gender Gender @relation(fields: [genderId], references: [id])
-  // genderId Int
-  password String
+  avatar Image? 
+  cuisine Cuisine[]
+  createRestaurant Restaurant[]
+  favorite Favorite[]
+  likes ReviewLike[]
+  review Review[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// cuisine model
+model Cuisine {
+  id Int @id @default(autoincrement())
+  uniqueId String @unique @default(uuid())
+  name String
+  icon String
+  isActive Boolean @default(true)
+  createdBy User @relation(fields: [userId], references: [id])
+  userId Int
+  restaurant Restaurant?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// restaurant model
+model Restaurant {
+  id Int @id @default(autoincrement())
+  uniqueId String @unique @default(uuid())
+  name String
+  geo Geo @relation(fields: [geoId], references: [id])
+  geoId Int @unique
+  address String
+  pricePerPerson String
+  website String @default("")
+  businessHours businessHours @relation(fields: [businessHoursId], references: [id])
+  businessHoursId Int @unique
+  breakTime String[]
+  phone String
+  images Image[]
+  cuisine Cuisine @relation(fields: [cuisineId], references: [id])
+  cuisineId Int @unique
+  status RestaurantStatus @default(PENDING)
+  view Int @default(0)
+  user User @relation(fields: [userId], references: [id])
+  userId Int
+  favorite Favorite[]
+  review Review[]
+  tags RestaurantTag[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// geo model
+model Geo {
+  id Int @id @default(autoincrement())
+  uniqueId String @unique @default(uuid())
+  latitude Int
+  longitude Int
+  restaurant Restaurant?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// business hours model
+model businessHours {
+  id Int @id @default(autoincrement())
+  uniqueId String @unique @default(uuid())
+  monday String[]
+  tuesday String[]
+  wednesday String[]
+  thursday String[]
+  friday String[]
+  saturday String[]
+  sunday String[]
+  restaurant Restaurant?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// favorite model
+model Favorite {
+  id Int @id @default(autoincrement())
+  uniqueId String @unique @default(uuid())
+  user User @relation(fields: [userId], references: [id])
+  userId Int
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  restaurantId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// review model
+model Review {
+  id Int @id @default(autoincrement())
+  uniqueId String @unique @default(uuid())
+  content String
+  image Image[]
+  likes ReviewLike[]
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  restaurantId Int
+  user User @relation(fields: [userId], references: [id])
+  userId Int
+  reply Review[] @relation("replyReviews")
+  reviewId Int?
+  replyReview Review? @relation("replyReviews", fields: [reviewId], references: [id])
+  reviewRating ReviewRating @default(SUGGEST)
+  suggestFood SuggestFood? @relation(fields: [suggestFoodId], references: [id])
+  suggestFoodId Int?  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// review like model
+model ReviewLike {
+  id Int @id @default(autoincrement())
+  uniqueId String @unique @default(uuid())
+  review Review @relation(fields: [reviewId], references: [id])
+  reviewId Int
+  user User @relation(fields: [userId], references: [id])
+  userId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// review iamge model
+model Image {
+  id Int @id @default(autoincrement())
+  uniqueId String @unique @default(uuid())
+  ref ImageRef
+  mimeType String?
+  originSize String[]
+  filename String?
+  url String
+  review Review? @relation(fields: [reviewId], references: [id])
+  reviewId Int?
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id])
+  restaurantId Int?
+  user User? @relation(fields: [userId], references: [id])
+  userId Int? @unique
+  menu Menu? @relation(fields: [menuId], references: [id])
+  menuId Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Menu {
+  id Int @id @default(autoincrement())
+  uniqueId String @unique @default(uuid())
+  image Image[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SuggestFood {
+  id Int @id @default(autoincrement())
+  uniqueId String @unique @default(uuid())
+  name String
+  description String
+  price Decimal @db.Money
+  review Review[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RestaurantTag {
+  id Int @id @default(autoincrement())
+  uniqueId String @unique @default(uuid())
+  name String
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  restaurantId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SearchHistory {
+  id Int @id @default(autoincrement())
+  uniqueId String @unique @default(uuid())
+  content String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RestarauntPrize {
+  id Int @id @default(autoincrement())
+  uniqueId String @unique @default(uuid())
+  content String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// imcompleted continues ... 

@@ -9,7 +9,4 @@ export class RegisterDto {
 
     @ApiProperty()
     phone: string;
-
-    @ApiProperty()
-    genderId: number;
 }

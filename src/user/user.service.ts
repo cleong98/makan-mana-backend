@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { Status, UserType } from '@prisma/client';
-import { hashSync } from 'bcryptjs';
+import { ConflictException, HttpException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ImageRef, User, UserType } from '@prisma/client';
+import { compareSync, hashSync } from 'bcryptjs';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -9,68 +9,103 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export class UserService {
   constructor (private prisma: PrismaService) {}
   async create(createUserDto: CreateUserDto) {
-    // hash user password
-    try {
-      if(createUserDto.password.length != 0) {
-        createUserDto.password = hashSync(createUserDto.password);
-      }
-      
-    const user = await this.findOneByEmail(
-      createUserDto.email,
-      {
-      showPass: false,
-    });
-    console.log(user);
+
+    const user: User = await this.findOneByEmail(createUserDto.email,{ showPass: true , userType: createUserDto.userType});
     if (user) {
-      return {
-        message: "this email already register",
-        data: user.data,
+      if(user.userType === UserType.EMAIL) {
+        if (!compareSync(createUserDto.password, user.password)) {
+          throw new UnauthorizedException({
+              msg: "Password Incorrect"
+          })
+        }
+        delete user.password;
+        throw new ConflictException({
+          msg: "User already available",
+          data: {user},
+        });
       }
     }
 
-    const result = await this.prisma.user.upsert({
-      where: {
-        email: createUserDto.email,
-      },
-       update: {},
-      create: createUserDto,
+    // if not email register
+    if (createUserDto.userType !== UserType.EMAIL) {
+      const userType = createUserDto.userType;
+      let image;
+      if (userType == UserType.GOOGLE) {
+        image = await this.prisma.image.create({
+          data: {
+            ref: ImageRef.USER,
+            url: createUserDto.avatar.url,
+          }
+        });
+      } else if (userType == UserType.FACEBOOK) {
+        image = await this.prisma.image.create({
+          data: {
+            ref: ImageRef.USER,
+            url: createUserDto.avatar.url,
+            originSize: [createUserDto.avatar.width, createUserDto.avatar.height]
+          }
+        });
+      }
+      delete createUserDto.avatar;
+      return this.prisma.user.create({
+        data: {
+          ...createUserDto,
+          avatar: {
+            connect: {
+              id: image.id,
+            }
+          }
+        },
+        select: {
+          uniqueId: true,
+          email: true,
+          phone: true,
+          userType: true,
+          role: true,
+          createdAt: true,
+          updatedAt: true,
+          avatar: {
+            select: {
+              url: true,
+            }
+          }
+        }
+      });
+    }
+
+    // hash user password
+    if(createUserDto.password.length != 0) {
+      createUserDto.password = hashSync(createUserDto.password);
+    }
+      
+    return this.prisma.user.create({
+      data: createUserDto,
       select: {
-        uuid: true,
+        uniqueId: true,
         email: true,
         phone: true,
-        avatar: true,
         userType: true,
         role: true,
         createdAt: true,
         updatedAt: true,
-        gender: {
+        avatar: {
           select: {
-            title: true,
+            url: true,
           }
         }
       }
     });
-    return {
-      message: "create success",
-      data: result,
-    }
-
-    }catch (error) {
-      return {
-        message: "User already Register",
-        error,
-      }
-    }
+  
   }
 
-  async findAll(status: Status = Status.ACTIVE) {
+  async findAll(isActive: boolean = true) {
    try {
-    const data = await this.prisma.user.findMany({
+    return this.prisma.user.findMany({
       where: {
-        status,
+        isActive
       },
       select: {
-        uuid: true,
+        uniqueId: true,
         email: true,
         phone: true,
         avatar: true,
@@ -78,36 +113,23 @@ export class UserService {
         role: true,
         createdAt: true,
         updatedAt: true,
-        gender: {
-          select: {
-            title: true,
-          }
-        }
       }
     })
 
-    return {
-      message: "Get all user successful",
-      data,
-    }
-
    } catch(error) {
-    return {
-      message: "Get all user failed",
-      error,
-    }
+    return error;
    }
   }
 
-  async findOne(uuid: string,status: Status = Status.ACTIVE) {
+  async findOne(uniqueId: string, isActive: boolean = true) {
     try {
-      const data = await this.prisma.user.findFirstOrThrow({
+     return this.prisma.user.findFirstOrThrow({
         where: {
-          status,
-          uuid,
+          isActive,
+          uniqueId,
         },
         select: {
-          uuid: true,
+          uniqueId: true,
           email: true,
           phone: true,
           avatar: true,
@@ -115,36 +137,24 @@ export class UserService {
           role: true,
           createdAt: true,
           updatedAt: true,
-          gender: {
-            select: {
-              title: true,
-            }
-          }
         }
-      })
-  
-      return {
-        message: "Get user successful",
-        data,
-      }
+      });
   
      } catch(error) {
-      return {
-        message: "Get user failed",
-        error,
-      }
+      return error;
      }
   }
 
-  async findOneByEmail(email: string,{status, showPass}: {status?: Status, showPass?: boolean} = { status: Status.ACTIVE, showPass: false}) {
+  async findOneByEmail(email: string,{isActive, showPass, userType}: {isActive?: boolean, showPass?: boolean, userType?: UserType} = { isActive: true, showPass: false, userType: UserType.EMAIL}) {
     try {
       const data = await this.prisma.user.findFirst({
         where: {
-          status,
+          isActive,
           email,
+          userType,
         },
         select: {
-          uuid: true,
+          uniqueId: true,
           email: true,
           phone: true,
           avatar: true,
@@ -153,35 +163,24 @@ export class UserService {
           createdAt: true,
           updatedAt: true,
           password: showPass,
-          gender: {
-            select: {
-              title: true,
-            }
-          }
         }
       })
-      return {
-        message: "Get user successful",
-        data,
-      }
+      return data;
   
      } catch(error) {
-      return {
-        message: "Get user failed",
-        error,
-      }
+      return error;
      }
   }
 
-  async update(uuid: string, updateUserDto: UpdateUserDto) {
+  async update(uniqueId: string, updateUserDto: UpdateUserDto) {
     try {
-      const data = await this.prisma.user.update({
+      return this.prisma.user.update({
         where: {
-        uuid
+        uniqueId
         },
         data: updateUserDto,
         select: {
-          uuid: true,
+          uniqueId: true,
           email: true,
           phone: true,
           avatar: true,
@@ -189,35 +188,21 @@ export class UserService {
           role: true,
           createdAt: true,
           updatedAt: true,
-          gender: {
-            select: {
-              title: true,
-            }
-          }
         }
       })
-  
-      return {
-        message: "Update user successful",
-        data,
-      }
-  
      } catch(error) {
-      return {
-        message: "Update user failed",
-        error,
-      }
+        return error;
      }
   }
 
-  async remove(uuid: string) {
+  async remove(uniqueId: string) {
     try {
-      const data = await this.prisma.user.delete({
+      return this.prisma.user.delete({
         where: {
-        uuid
+        uniqueId
         },
         select: {
-          uuid: true,
+          uniqueId: true,
           email: true,
           phone: true,
           avatar: true,
@@ -225,24 +210,10 @@ export class UserService {
           role: true,
           createdAt: true,
           updatedAt: true,
-          gender: {
-            select: {
-              title: true,
-            }
-          }
         }
       })
-  
-      return {
-        message: "Delete user successful",
-        data,
-      }
-  
      } catch(error) {
-      return {
-        message: "Delete user failed",
-        error,
-      }
+      return error;
      }
   }
 }

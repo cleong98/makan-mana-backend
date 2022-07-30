@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { IStrategyOptions, Strategy } from 'passport-local';
 import { UserService } from 'src/user/user.service';
@@ -16,22 +16,17 @@ export class LocalStrategy extends PassportStrategy(Strategy, 'local') {
     }
 
     async validate(email: string, password: string) {
-        try {
-            const {data: user} = await this.userService.findOneByEmail(email);
-
-            if (!compareSync(password, user.password)) {
-                throw new BadRequestException('Password Incorrect')
+        const user = await this.userService.findOneByEmail(email, {showPass: true});
+            if (!user) {
+                throw new HttpException(new NotFoundException({
+                    msg: "User Not Found"
+                }), HttpStatus.NOT_FOUND);
             }
-
+            if (!compareSync(password, user.password)) {
+                throw new HttpException(new UnauthorizedException({
+                    msg: "Password Incorrect"
+                }), HttpStatus.UNAUTHORIZED);
+            }
             return user;
-
-        } catch(error) {
-            throw new BadRequestException('Not Found User');
-        }
-        
-
-
-
-
     }
 }
