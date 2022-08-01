@@ -4,7 +4,6 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
-import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
 import { FirebaseModule } from './firebase/firebase.module';
 
@@ -15,7 +14,8 @@ import { FirebaseModule } from './firebase/firebase.module';
     }),
     PrismaModule, 
     UserModule,  
-    AuthModule, FirebaseModule,
+    AuthModule, 
+    FirebaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],
